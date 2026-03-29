@@ -1,0 +1,34 @@
+services:
+  cockroachdb:
+    image: cockroachdb/cockroach:v24.2.0
+    command: start-single-node --insecure --store=attrs=ssd,path=/var/lib/cockroach/,size=20%
+    volumes:
+      - data:/var/lib/cockroach
+    ports:
+      - "26257:26257"
+      - "8080:8080"
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8080/health?ready=1"]
+      interval: 5s
+      timeout: 2s
+      retries: 5
+
+  nakama:
+    build: .
+    depends_on:
+      cockroachdb:
+        condition: service_healthy
+    entrypoint:
+      - "/bin/sh"
+      - "-ecx"
+      - "/nakama/nakama migrate up --config /nakama/data/local.yml && /nakama/nakama --config /nakama/data/local.yml"
+    volumes:
+      - ./local.yml:/nakama/data/local.yml
+    ports:
+      - "7349:7349" # gRPC
+      - "7350:7350" # HTTP/WebSocket API
+      - "7351:7351" # Dashboard (Developer Console)
+    restart: always
+
+volumes:
+  data:
