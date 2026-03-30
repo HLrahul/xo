@@ -23,3 +23,11 @@ COPY --from=builder /builder/tictactoe.so /nakama/data/modules/
 
 # Copy the local config file
 COPY local.yml /nakama/data/
+
+# Start Nakama with migrations and configuration
+# We use /bin/sh -c to allow environment variable expansion
+CMD /nakama/nakama migrate up --database.address "postgresql://${DB_USER}:${DB_PASSWORD}@${DB_HOST}:${DB_PORT}/${DB_NAME}" && \
+    /nakama/nakama --config /nakama/data/local.yml \
+    --database.address "postgresql://${DB_USER}:${DB_PASSWORD}@${DB_HOST}:${DB_PORT}/${DB_NAME}" \
+    --socket.server_key "${SOCKET_SERVER_KEY}" \
+    --session.encryption_key "${SESSION_ENCRYPTION_KEY}"
