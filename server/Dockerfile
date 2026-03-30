@@ -25,8 +25,6 @@ COPY --from=builder /builder/tictactoe.so /nakama/data/modules/
 COPY local.yml /nakama/data/
 
 # Start Nakama with migrations and configuration
-# We use /bin/sh -c to allow environment variable expansion
-CMD /nakama/nakama migrate up --config /nakama/data/local.yml && \
-    /nakama/nakama --config /nakama/data/local.yml \
-    --socket.server_key "${SOCKET_SERVER_KEY}" \
-    --session.encryption_key "${SESSION_ENCRYPTION_KEY}"
+# We use explicit shell execution to ensure variable expansion
+ENTRYPOINT ["/bin/sh", "-c"]
+CMD ["/nakama/nakama migrate up --config /nakama/data/local.yml && /nakama/nakama --config /nakama/data/local.yml --database.address postgresql://${DB_USER}:${DB_PASSWORD}@${DB_HOST}:${DB_PORT}/${DB_NAME} --socket.server_key ${SOCKET_SERVER_KEY} --session.encryption_key ${SESSION_ENCRYPTION_KEY}"]
