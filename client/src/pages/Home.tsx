@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 
-import { Users, LogOut, Play } from "lucide-react";
+import { Users, LogOut, Play, Share2 } from "lucide-react";
 
 import { useGame } from "../contexts/GameContext";
 
@@ -26,6 +26,7 @@ export default function Home() {
   const [showCancelPrompt, setShowCancelPrompt] = useState(false);
   const [matchmakerTicket, setMatchmakerTicket] = useState<string | null>(null);
   const [searchTimeoutId, setSearchTimeoutId] = useState<any>(null);
+  const [isCopied, setIsCopied] = useState(false);
 
   useEffect(() => {
     if (socket) {
@@ -124,6 +125,31 @@ export default function Home() {
     setMatchmakerTicket(null);
   };
 
+  const handleShare = async () => {
+    const shareData = {
+      title: "Play Tic-Tac-Toe",
+      text: "Join me for a game of Multiplayer Tic-Tac-Toe!",
+      url: window.location.origin,
+    };
+
+    if (navigator.share) {
+      try {
+        await navigator.share(shareData);
+      } catch (err) {
+        console.error("Error sharing:", err);
+      }
+    } else {
+      // Fallback: Copy to clipboard
+      try {
+        await navigator.clipboard.writeText(window.location.origin);
+        setIsCopied(true);
+        setTimeout(() => setIsCopied(false), 2000);
+      } catch (err) {
+        console.error("Failed to copy:", err);
+      }
+    }
+  };
+
   return (
     <div
       className="container"
@@ -159,6 +185,24 @@ export default function Home() {
             {Math.max(onlineCount - 1, 0)} Online
           </span>
         </div>
+
+        <button
+          onClick={handleShare}
+          className="button secondary"
+          style={{
+            padding: "0 0.5rem",
+            height: "2rem",
+            display: "flex",
+            alignItems: "center",
+            gap: "0.4rem",
+            fontSize: "0.8rem",
+            color: isCopied ? "#10b981" : "var(--foreground)",
+          }}
+          title="Share Game URL"
+        >
+          <Share2 size={14} />
+          {isCopied ? "Copied!" : "Share"}
+        </button>
 
         {session && username && (
           <div style={{ display: "flex", alignItems: "center", gap: "1rem" }}>
