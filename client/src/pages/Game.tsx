@@ -1,18 +1,30 @@
 import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
+
 import { Home } from "lucide-react";
-import { useGame } from "../contexts/GameContext";
+import { nakamaClient } from "../lib/nakamaClient";
 import type { MatchData } from "@heroiclabs/nakama-js";
+
+import { useGame } from "../contexts/GameContext";
+
 import logo from "../assets/xo.jpg";
 
 export default function Game() {
-  const { session, socket, matchId, setMatchId } = useGame();
+  const {
+    session,
+    socket,
+    matchId,
+    setMatchId,
+    opponentUsername,
+    setOpponentUsername,
+  } = useGame();
   const navigate = useNavigate();
 
   const [board, setBoard] = useState<string[]>(Array(9).fill(""));
   const [nextTurn, setNextTurn] = useState<string>("");
   const [mySymbol, setMySymbol] = useState<string>("");
   const [winner, setWinner] = useState<string>("");
+  const [opponentLeft, setOpponentLeft] = useState(false);
 
   useEffect(() => {
     if (!session || !socket || !matchId) {
@@ -38,9 +50,24 @@ export default function Game() {
         setNextTurn(data.next_turn);
         setWinner(data.winner);
 
-        // Figure out our own symbol
-        if (data.marks && session.user_id && data.marks[session.user_id]) {
-          setMySymbol(data.marks[session.user_id]);
+        // Figure out our own symbol and fetch opponent's name
+        if (data.marks && session.user_id) {
+          if (data.marks[session.user_id]) {
+            setMySymbol(data.marks[session.user_id]);
+          }
+          const opponentId = Object.keys(data.marks).find(
+            (id) => id !== session.user_id,
+          );
+          if (opponentId) {
+            nakamaClient
+              .getUsers(session, [opponentId])
+              .then((users: { users?: Array<{ username?: string }> }) => {
+                if (users.users && users.users.length > 0) {
+                  setOpponentUsername(users.users[0].username || "Opponent");
+                }
+              })
+              .catch(() => setOpponentUsername("Opponent"));
+          }
         }
 
         // If game over, redirect after 3 seconds
@@ -50,6 +77,15 @@ export default function Game() {
             navigate("/");
           }, 3500);
         }
+      }
+
+      if (matchstate.op_code === 3) {
+        // OpCode 3: Opponent left mid-game
+        setOpponentLeft(true);
+        setTimeout(() => {
+          setMatchId(null);
+          navigate("/");
+        }, 3000);
       }
     };
 
@@ -83,6 +119,7 @@ export default function Game() {
   if (!matchId) return null;
 
   const isMyTurn = session?.user_id === nextTurn;
+  const gameDisabled = !!winner || opponentLeft;
 
   return (
     <div
@@ -153,7 +190,7 @@ export default function Game() {
             }}
           >
             <span style={{ fontSize: "0.875rem", fontWeight: 600 }}>
-              Opponent
+              {opponentUsername || "Opponent"}
             </span>
             <div className="O" style={{ fontSize: "2rem", fontWeight: 800 }}>
               {mySymbol === "X" ? "O" : "X"}
@@ -180,7 +217,7 @@ export default function Game() {
               key={idx}
               className={`board-cell ${cell} ${cell ? "taken" : ""}`}
               onClick={() => handleCellClick(idx)}
-              disabled={!!cell || !isMyTurn || !!winner}
+              disabled={!!cell || !isMyTurn || gameDisabled}
             >
               {cell}
             </button>
@@ -189,7 +226,17 @@ export default function Game() {
       </div>
 
       <button
-        onClick={() => navigate("/")}
+        onClick={async () => {
+          if (socket && matchId) {
+            try {
+              await socket.leaveMatch(matchId);
+            } catch (e) {
+              console.error("Failed to leave match", e);
+            }
+          }
+          setMatchId(null);
+          navigate("/");
+        }}
         className="button secondary"
         style={{ marginTop: "2rem" }}
       >
@@ -217,6 +264,24 @@ export default function Game() {
                 : winner === mySymbol
                   ? "YOU WON!"
                   : "YOU LOST!"}
+            </h2>
+            <p className="subtitle">Returning to lobby in 3 seconds...</p>
+          </div>
+        </div>
+      )}
+
+      {opponentLeft && (
+        <div className="dialog-overlay">
+          <div className="dialog-content" style={{ textAlign: "center" }}>
+            <h2
+              style={{
+                fontSize: "1.75rem",
+                fontWeight: 800,
+                marginBottom: "0.75rem",
+                color: "#f59e0b",
+              }}
+            >
+              {opponentUsername || "Opponent"} left the game
             </h2>
             <p className="subtitle">Returning to lobby in 3 seconds...</p>
           </div>

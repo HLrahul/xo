@@ -1,8 +1,4 @@
 name: "nakama-tictactoe"
-database:
-  address:
-    - "root@cockroachdb:26257"
-  region: "local"
 
 runtime:
   env:
@@ -13,11 +9,11 @@ logger:
   format: "json"
 
 session:
-  encryption_key: "defaultkey" # CHANGE THIS IN PRODUCTION
+  encryption_key: "${SESSION_ENCRYPTION_KEY}"
   token_expiry_sec: 3600
 
 socket:
-  server_key: "defaultkey" # CHANGE THIS IN PRODUCTION
+  server_key: "${SOCKET_SERVER_KEY}"
   port: 7350
 
 console:

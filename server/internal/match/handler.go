@@ -4,8 +4,8 @@ import (
 	"context"
 	"database/sql"
 
-	"github.com/heroiclabs/nakama-common/runtime"
 	"encoding/json"
+	"github.com/heroiclabs/nakama-common/runtime"
 )
 
 type Match struct{}
@@ -95,8 +95,22 @@ func (m *Match) MatchLeave(
 
 	s := state.(*MatchState)
 
+	// If the game is still active (no winner, board not empty) and 2 players were present,
+	// notify the remaining player their opponent left, then close the match.
+	gameWasActive := s.NextTurn != "" && len(s.Players) == 2
+
 	for _, p := range presences {
 		delete(s.Players, p.GetUserId())
+	}
+
+	if gameWasActive {
+		msg := []byte(`{"reason": "opponent_left"}`)
+		if err := dispatcher.BroadcastMessage(3, msg, nil, nil, true); err != nil {
+			logger.Error("Failed to broadcast opponent_left: %v", err)
+		}
+
+		logger.Info("Player left mid-game. Closing match.")
+		return nil
 	}
 
 	return s
@@ -141,7 +155,7 @@ func (m *Match) MatchLoop(
 			if winner == "" && checkDraw(s.Board) {
 				winner = "DRAW"
 			}
-			
+
 			// 6. Switch turns (unless the game is over)
 			if winner == "" {
 				for userId := range s.Players {
@@ -165,7 +179,7 @@ func (m *Match) MatchLoop(
 			out, _ := json.Marshal(newState)
 			dispatcher.BroadcastMessage(2, out, nil, nil, true)
 
-			// 8. If the game is over, we return nil. 
+			// 8. If the game is over, we return nil.
 			// This tells Nakama to close down this room and boot the players out.
 			if winner != "" {
 				logger.Info("Match finished with winner: %s. Closing room.", winner)

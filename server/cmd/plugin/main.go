@@ -52,11 +52,6 @@ func InitModule(
 		return err
 	}
 
-	// Register RPCs
-	if err := initializer.RegisterRpc("get_online_count", rpc.GetOnlineCount); err != nil {
-		logger.Error("Unable to register: %v", err)
-		return err
-	}
 	if err := initializer.RegisterRpc("join_global", rpc.JoinGlobal); err != nil {
 		logger.Error("Unable to register: %v", err)
 		return err

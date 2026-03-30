@@ -5,8 +5,10 @@ import { Client } from "@heroiclabs/nakama-js";
 const useSSL = window.location.protocol === "https:";
 const port = window.location.port || (useSSL ? "443" : "80");
 
+const serverKey = import.meta.env.VITE_NAKAMA_SERVER_KEY || "defaultkey";
+
 export const nakamaClient = new Client(
-  "defaultkey",
+  serverKey,
   window.location.hostname,
   port,
   useSSL,

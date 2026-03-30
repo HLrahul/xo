@@ -1,16 +1,24 @@
 import React, { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
+
 import { Users, LogOut, Play } from "lucide-react";
+
 import { useGame } from "../contexts/GameContext";
-import { nakamaClient } from "../lib/nakamaClient";
+
 import logo from "../assets/xo.jpg";
 
 export default function Home() {
-  const { session, socket, setMatchId, authenticate, logout, username } =
-    useGame();
+  const {
+    session,
+    socket,
+    setMatchId,
+    authenticate,
+    logout,
+    username,
+    onlineCount,
+  } = useGame();
   const navigate = useNavigate();
 
-  const [onlineCount, setOnlineCount] = useState<number>(0);
   const [isSearching, setIsSearching] = useState(false);
   const [showNameDialog, setShowNameDialog] = useState(false);
   const [inputName, setInputName] = useState("");
@@ -19,42 +27,6 @@ export default function Home() {
   const [matchmakerTicket, setMatchmakerTicket] = useState<string | null>(null);
   const [searchTimeoutId, setSearchTimeoutId] = useState<any>(null);
 
-  // Poll online count whether authenticated or not
-  useEffect(() => {
-    const fetchOnline = async () => {
-      try {
-        // We can call an RPC via HTTP even without a session using HttpKey
-        const response = await nakamaClient.rpcHttpKey(
-          "defaulthttpkey",
-          "get_online_count",
-          {},
-        );
-        const p = response.payload;
-        let data = { online_count: 0 };
-
-        if (p) {
-          data = typeof p === "string" ? JSON.parse(p) : p;
-        }
-
-        let currentCount = data.online_count || 0;
-
-        // Exclude the player's own session from the count if they are online
-        if (session && currentCount > 0) {
-          currentCount -= 1;
-        }
-
-        setOnlineCount(currentCount);
-      } catch (e) {
-        console.error("Failed to fetch online count", e);
-      }
-    };
-
-    fetchOnline();
-    const interval = setInterval(fetchOnline, 5000);
-    return () => clearInterval(interval);
-  }, [session]);
-
-  // Set up socket listener for matchmaking when authenticated
   useEffect(() => {
     if (socket) {
       socket.onmatchmakermatched = (matchmakerResult) => {
@@ -73,10 +45,8 @@ export default function Home() {
 
   const handleStartClick = () => {
     if (session) {
-      // Already authenticated with UUID, go straight to matchmaking
       startMatchmaking();
     } else {
-      // Show dialog to enter name before creating background UUID
       setErrorMsg("");
       setShowNameDialog(true);
     }
@@ -146,6 +116,7 @@ export default function Home() {
         console.error("Failed to cancel ticket", err);
       }
     }
+
     // Reset all searching state
     setIsSearching(false);
     setShowCancelPrompt(false);
@@ -184,7 +155,9 @@ export default function Home() {
           }}
         >
           <Users size={16} />
-          <span style={{ fontSize: "0.875rem" }}>{onlineCount} Online</span>
+          <span style={{ fontSize: "0.875rem" }}>
+            {Math.max(onlineCount - 1, 0)} Online
+          </span>
         </div>
 
         {session && username && (

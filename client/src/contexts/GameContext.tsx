@@ -5,12 +5,16 @@ import { Session, type Socket } from "@heroiclabs/nakama-js";
 
 import { nakamaClient } from "../lib/nakamaClient";
 
+
 interface GameContextType {
   session: Session | null;
   socket: Socket | null;
   username: string | null;
+  opponentUsername: string | null;
   matchId: string | null;
+  onlineCount: number;
   setMatchId: (id: string | null) => void;
+  setOpponentUsername: (name: string | null) => void;
   authenticate: (username: string) => Promise<void>;
   logout: () => void;
 }
@@ -21,7 +25,56 @@ export function GameProvider({ children }: { children: React.ReactNode }) {
   const [session, setSession] = useState<Session | null>(null);
   const [socket, setSocket] = useState<Socket | null>(null);
   const [username, setUsername] = useState<string | null>(null);
+  const [opponentUsername, setOpponentUsername] = useState<string | null>(null);
   const [matchId, setMatchId] = useState<string | null>(null);
+  const [onlineCount, setOnlineCount] = useState<number>(0);
+
+  useEffect(() => {
+    if (!socket) {
+      setOnlineCount(0);
+      return;
+    }
+
+    const selfUserId = session?.user_id;
+
+    socket.onstreampresence = (event) => {
+      if (event.stream?.mode !== 123) return;
+
+      // Filter out self — initial count from join_global already includes us
+      const joins = (event.joins || []).filter((p) => p.user_id !== selfUserId);
+      const leaves = (event.leaves || []).filter(
+        (p) => p.user_id !== selfUserId,
+      );
+
+      if (joins.length === 0 && leaves.length === 0) return;
+
+      setOnlineCount((prev) =>
+        Math.max(0, prev + joins.length - leaves.length),
+      );
+    };
+
+    return () => {
+      socket.onstreampresence = () => {};
+    };
+  }, [socket, session]);
+
+  // Joins the global stream and sets the authoritative initial count from the RPC.
+  // The onstreampresence listener (set via useEffect) filters self-events,
+  // so the RPC count is the single source of truth for the initial value.
+  const joinGlobalAndSetCount = async (sock: Socket) => {
+    try {
+      const res = await sock.rpc("join_global");
+      const payload = res.payload;
+      if (payload) {
+        const data =
+          typeof payload === "string" ? JSON.parse(payload) : payload;
+        // Override with authoritative count from server (self-join event already filtered)
+        setOnlineCount(data.online_count || 0);
+      }
+    } catch (e) {
+      console.error("Failed to join global stream", e);
+    }
+  };
 
   // Attempt to auto-login if they have a saved UUID
   useEffect(() => {
@@ -44,13 +97,15 @@ export function GameProvider({ children }: { children: React.ReactNode }) {
           autoSocket = nakamaClient.createSocket(false, false);
           await autoSocket.connect(newSession, true);
 
-          // Join the global lobby so presence works (but check mounted again)
           if (!isMounted) {
             autoSocket.disconnect(false);
             return;
           }
-          await autoSocket.rpc("join_global");
+
+          // Set socket first so onstreampresence listener is attached,
+          // then call RPC — the RPC response overwrites any race-counted self-join
           setSocket(autoSocket);
+          await joinGlobalAndSetCount(autoSocket);
         })
         .catch(() => {
           if (!isMounted) return;
@@ -85,9 +140,9 @@ export function GameProvider({ children }: { children: React.ReactNode }) {
 
       const newSocket = nakamaClient.createSocket(false, false);
       await newSocket.connect(newSession, true);
-      await newSocket.rpc("join_global");
 
       setSocket(newSocket);
+      await joinGlobalAndSetCount(newSocket);
     } catch (error) {
       if (isNew) {
         localStorage.removeItem("nakama_device_id");
@@ -103,7 +158,9 @@ export function GameProvider({ children }: { children: React.ReactNode }) {
     setSession(null);
     setSocket(null);
     setUsername(null);
+    setOpponentUsername(null);
     setMatchId(null);
+    setOnlineCount(0);
   };
 
   return (
@@ -112,8 +169,11 @@ export function GameProvider({ children }: { children: React.ReactNode }) {
         session,
         socket,
         username,
+        opponentUsername,
         matchId,
+        onlineCount,
         setMatchId,
+        setOpponentUsername,
         authenticate,
         logout,
       }}
