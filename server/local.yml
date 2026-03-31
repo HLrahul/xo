@@ -15,6 +15,7 @@ session:
 socket:
   server_key: "${SOCKET_SERVER_KEY}"
   port: 7350
+  cors_allowed_origins: ["http://localhost:5173", "https://*.vercel.app"]
 
 console:
   port: 7351

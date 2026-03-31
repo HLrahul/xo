@@ -3,7 +3,7 @@ import React, { createContext, useContext, useState, useEffect } from "react";
 import { v4 as uuidv4 } from "uuid";
 import { Session, type Socket } from "@heroiclabs/nakama-js";
 
-import { nakamaClient } from "../lib/nakamaClient";
+import { nakamaClient, useSSL } from "../lib/nakamaClient";
 
 
 interface GameContextType {
@@ -94,7 +94,7 @@ export function GameProvider({ children }: { children: React.ReactNode }) {
           if (!isMounted) return;
           setUsername(account.user?.username || null);
 
-          autoSocket = nakamaClient.createSocket(false, false);
+          autoSocket = nakamaClient.createSocket(useSSL, false);
           await autoSocket.connect(newSession, true);
 
           if (!isMounted) {
@@ -138,7 +138,7 @@ export function GameProvider({ children }: { children: React.ReactNode }) {
       setSession(newSession);
       setUsername(newUsername);
 
-      const newSocket = nakamaClient.createSocket(false, false);
+      const newSocket = nakamaClient.createSocket(useSSL, false);
       await newSocket.connect(newSession, true);
 
       setSocket(newSocket);

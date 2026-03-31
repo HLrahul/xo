@@ -11,4 +11,5 @@ const port =
 
 const serverKey = import.meta.env.VITE_NAKAMA_SERVER_KEY || "defaultkey";
 
+export { useSSL };
 export const nakamaClient = new Client(serverKey, host, port, useSSL);
