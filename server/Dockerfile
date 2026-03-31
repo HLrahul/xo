@@ -21,10 +21,13 @@ FROM heroiclabs/nakama:3.25.0
 # Copy the compiled plugin from the builder
 COPY --from=builder /builder/tictactoe.so /nakama/data/modules/
 
-# Copy the local config file
-COPY local.yml /nakama/data/
+# Copy the local config file and entrypoint script
+COPY local.yml entrypoint.sh /nakama/data/
 
-# Start Nakama with migrations and configuration
-# We use explicit shell execution to ensure variable expansion
-ENTRYPOINT ["/bin/sh", "-c"]
-CMD ["/nakama/nakama migrate up --config /nakama/data/local.yml && /nakama/nakama --config /nakama/data/local.yml --database.address postgresql://${DB_USER}:${DB_PASSWORD}@${DB_HOST}:${DB_PORT}/${DB_NAME} --socket.server_key ${SOCKET_SERVER_KEY} --session.encryption_key ${SESSION_ENCRYPTION_KEY}"]
+# Ensure the entrypoint script is executable
+USER root
+RUN chmod +x /nakama/data/entrypoint.sh
+USER 1000
+
+# Explicitly override the base image's ENTRYPOINT
+ENTRYPOINT ["/bin/sh", "/nakama/data/entrypoint.sh"]
