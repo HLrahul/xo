@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 
-import { Users, LogOut, Play, Share2 } from "lucide-react";
+import { Users, LogOut, Play, Share2, Code } from "lucide-react";
 
 import { useGame } from "../contexts/GameContext";
 
@@ -338,6 +338,33 @@ export default function Home() {
           </div>
         </div>
       )}
+      {/* Footer Repo Link */}
+      <footer
+        style={{
+          marginTop: "2rem",
+          opacity: 0.6,
+          transition: "opacity 0.2s",
+        }}
+        onMouseEnter={(e) => (e.currentTarget.style.opacity = "1")}
+        onMouseLeave={(e) => (e.currentTarget.style.opacity = "0.6")}
+      >
+        <a
+          href="https://github.com/HLrahul/xo"
+          target="_blank"
+          rel="noopener noreferrer"
+          style={{
+            color: "inherit",
+            textDecoration: "none",
+            display: "flex",
+            alignItems: "center",
+            gap: "0.5rem",
+            fontSize: "0.875rem",
+          }}
+        >
+          <Code size={16} />
+          View on GitHub
+        </a>
+      </footer>
     </div>
   );
 }
